@@ -1,60 +1,90 @@
 from flask import Flask, request, jsonify, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import check_password_hash
+from flask_bcrypt import Bcrypt
+from flask_cors import CORS
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Change this to a secure key
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://username:password@localhost/database_name'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vending.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = 'your_secret_key'
+
 db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+CORS(app)
+
+# Database Models
+class Company(db.Model):
+    companyId = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+    companyName = db.Column(db.String(120))
+    vendingMachineNum = db.Column(db.Integer)
+    email = db.Column(db.String(120))
+    phone = db.Column(db.String(20))
+    address = db.Column(db.String(200))
+    date = db.Column(db.DateTime)
 
 class Client(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    clientId = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+    date = db.Column(db.DateTime)
 
-class Company(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+class Purchase(db.Model):
+    purchaseId = db.Column(db.Integer, primary_key=True)
+    clientId = db.Column(db.Integer, db.ForeignKey('client.clientId'))
+    price = db.Column(db.Float)
+    date = db.Column(db.DateTime)
 
-def verify_user(username, password):
-    user = Client.query.filter_by(username=username).first()
-    if user and check_password_hash(user.password_hash, password):
-        return 'client', user.id
-    
-    user = Company.query.filter_by(username=username).first()
-    if user and check_password_hash(user.password_hash, password):
-        return 'company', user.id
-    
-    return None, None
+class Sale(db.Model):
+    saleId = db.Column(db.Integer, primary_key=True)
+    productCode = db.Column(db.String(20))
+    productName = db.Column(db.String(100))
+    salePrice = db.Column(db.Float)
+    saleTime = db.Column(db.DateTime)
 
+# Login Route
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
     username = data.get('username')
     password = data.get('password')
+    
+    company = Company.query.filter_by(username=username).first()
+    if company and bcrypt.check_password_hash(company.password, password):
+        session['user'] = {'id': company.companyId, 'role': 'company'}
+        return jsonify({'redirect': 'company_dashboard'})
+    
+    client = Client.query.filter_by(username=username).first()
+    if client and bcrypt.check_password_hash(client.password, password):
+        session['user'] = {'id': client.clientId, 'role': 'client'}
+        return jsonify({'redirect': 'client_dashboard'})
+    
+    return jsonify({'error': 'Invalid username or password'}), 401
 
-    role, user_id = verify_user(username, password)
-    if role:
-        session['user_id'] = user_id
-        session['role'] = role
-        if role == 'client':
-            return jsonify({'redirect': url_for('client_dashboard')})
-        else:
-            return jsonify({'redirect': url_for('company_dashboard')})
-    return jsonify({'error': 'Invalid credentials'}), 401
-
-@app.route('/client_dashboard')
+# Client Dashboard Data
+@app.route('/client_dashboard', methods=['GET'])
 def client_dashboard():
-    if 'user_id' in session and session['role'] == 'client':
-        return jsonify({'message': 'Client Dashboard'})
-    return redirect(url_for('login'))
+    if 'user' not in session or session['user']['role'] != 'client':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    client_id = session['user']['id']
+    purchases = Purchase.query.filter_by(clientId=client_id).all()
+    purchase_list = [{'date': p.date, 'price': p.price} for p in purchases]
+    
+    return jsonify({'purchases': purchase_list})
 
-@app.route('/company_dashboard')
+# Company Dashboard Data
+@app.route('/company_dashboard', methods=['GET'])
 def company_dashboard():
-    if 'user_id' in session and session['role'] == 'company':
-        return jsonify({'message': 'Company Dashboard'})
-    return redirect(url_for('login'))
+    if 'user' not in session or session['user']['role'] != 'company':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    sales = Sale.query.all()
+    sales_list = [{'product': s.productName, 'code': s.productCode, 'price': s.salePrice, 'time': s.saleTime} for s in sales]
+    
+    return jsonify({'sales': sales_list})
 
 if __name__ == '__main__':
+    db.create_all()
     app.run(debug=True)
