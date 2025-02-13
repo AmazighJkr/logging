@@ -85,6 +85,22 @@ def company_dashboard():
     
     return jsonify({'sales': sales_list})
 
+@app.route('/update_prices', methods=['POST'])
+def update_prices():
+    if 'user' not in session or session['user']['role'] != 'company':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.json
+    updated_prices = data.get('prices', [])
+
+    for item in updated_prices:
+        sale = Sale.query.filter_by(productCode=item['code']).first()
+        if sale:
+            sale.salePrice = float(item['new_price'])
+    
+    db.session.commit()
+    return jsonify({'message': 'Prices updated successfully'})
+
 if __name__ == '__main__':
     db.create_all()
     app.run(debug=True)
