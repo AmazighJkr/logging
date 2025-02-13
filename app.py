@@ -1,69 +1,60 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-from flask_mysqldb import MySQL
-import pymysql
-import os
+from flask import Flask, request, jsonify, session, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import check_password_hash
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key"
+app.secret_key = 'your_secret_key'  # Change this to a secure key
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://username:password@localhost/database_name'
+db = SQLAlchemy(app)
 
-# Enable CORS
-from flask_cors import CORS
-CORS(app)
+class Client(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
 
-# Database configuration
-app.config["MYSQL_HOST"] = "sql7.freesqldatabase.com"
-app.config["MYSQL_USER"] = "sql7762208"
-app.config["MYSQL_PASSWORD"] = "MqFJpHymhB"
-app.config["MYSQL_DB"] = "sql7762208"
-app.config["MYSQL_PORT"] = 3306
+class Company(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
 
-mysql = MySQL(app)
-
-# Serve Login Page
-@app.route("/")
-def login_page():
-    return render_template("login.html")
-
-# Serve Dashboard Page (Protected)
-@app.route("/dashboard")
-def dashboard():
-    if "user_id" not in session:
-        return redirect(url_for("login_page"))
-    return render_template("dashboard.html")
-
-# Handle Login
-@app.route("/login", methods=["POST"])
-def login():
-    username = request.form.get("username")
-    password = request.form.get("password")
-
-    cursor = mysql.connection.cursor()
-    cursor.execute("SELECT userId, username FROM users WHERE username = %s AND password = %s", (username, password))
-    user = cursor.fetchone()
-    cursor.close()
-
-    if user:
-        session["user_id"] = user[0]
-        session["username"] = user[1]
-        return redirect(url_for("dashboard"))
-    else:
-        return render_template("login.html", error="Invalid username or password")
-
-# Handle Logout
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login_page"))
-
-# Fetch Vending Machines
-@app.route("/vendingmachines", methods=["GET"])
-def get_vending_machines():
-    cursor = mysql.connection.cursor()
-    cursor.execute("SELECT vendingMachineCode, vendingMachineName FROM vendingmachines")
-    machines = cursor.fetchall()
-    cursor.close()
+def verify_user(username, password):
+    user = Client.query.filter_by(username=username).first()
+    if user and check_password_hash(user.password_hash, password):
+        return 'client', user.id
     
-    return jsonify([{ "code": row[0], "name": row[1] } for row in machines])
+    user = Company.query.filter_by(username=username).first()
+    if user and check_password_hash(user.password_hash, password):
+        return 'company', user.id
+    
+    return None, None
 
-if __name__ == "__main__":
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    role, user_id = verify_user(username, password)
+    if role:
+        session['user_id'] = user_id
+        session['role'] = role
+        if role == 'client':
+            return jsonify({'redirect': url_for('client_dashboard')})
+        else:
+            return jsonify({'redirect': url_for('company_dashboard')})
+    return jsonify({'error': 'Invalid credentials'}), 401
+
+@app.route('/client_dashboard')
+def client_dashboard():
+    if 'user_id' in session and session['role'] == 'client':
+        return jsonify({'message': 'Client Dashboard'})
+    return redirect(url_for('login'))
+
+@app.route('/company_dashboard')
+def company_dashboard():
+    if 'user_id' in session and session['role'] == 'company':
+        return jsonify({'message': 'Company Dashboard'})
+    return redirect(url_for('login'))
+
+if __name__ == '__main__':
     app.run(debug=True)
