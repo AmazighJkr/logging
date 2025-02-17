@@ -1,9 +1,9 @@
-from flask import Flask, request, jsonify, session, redirect, url_for
+from flask import Flask, request, jsonify, session, redirect, url_for, render_template
 from flask_mysqldb import MySQL
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=".")  # Look for HTML files in the same directory
 CORS(app)
 bcrypt = Bcrypt(app)
 app.secret_key = 'your_secret_key'  # Keep this secure!
@@ -20,9 +20,14 @@ mysql = MySQL(app)
 # Redirect to login page
 @app.route('/')
 def home():
-    return redirect(url_for('login'))
+    return redirect(url_for('login_page'))
 
-# Login Route
+# Serve Login Page
+@app.route('/login', methods=['GET'])
+def login_page():
+    return render_template('login.html')
+
+# Handle Login Request
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
@@ -30,14 +35,14 @@ def login():
     password = data.get('password')
 
     cur = mysql.connection.cursor()
-    
+
     # Check if user is a company
     cur.execute("SELECT companyId, password FROM company WHERE username = %s", (username,))
     company = cur.fetchone()
 
     if company and bcrypt.check_password_hash(company[1], password):
         session['user'] = {'id': company[0], 'role': 'company'}
-        return jsonify({'redirect': 'company_dashboard'})
+        return jsonify({'redirect': url_for('company_dashboard')})
 
     # Check if user is a client
     cur.execute("SELECT clientId, password FROM client WHERE username = %s", (username,))
@@ -45,15 +50,15 @@ def login():
 
     if client and bcrypt.check_password_hash(client[1], password):
         session['user'] = {'id': client[0], 'role': 'client'}
-        return jsonify({'redirect': 'client_dashboard'})
+        return jsonify({'redirect': url_for('client_dashboard')})
 
     return jsonify({'error': 'Invalid username or password'}), 401
 
-# Client Dashboard Data
+# Serve Client Dashboard
 @app.route('/client_dashboard', methods=['GET'])
 def client_dashboard():
     if 'user' not in session or session['user']['role'] != 'client':
-        return jsonify({'error': 'Unauthorized'}), 403
+        return redirect(url_for('login_page'))
 
     client_id = session['user']['id']
     
@@ -62,22 +67,20 @@ def client_dashboard():
     purchases = cur.fetchall()
     cur.close()
 
-    purchase_list = [{'date': p[0], 'price': p[1]} for p in purchases]
-    return jsonify({'purchases': purchase_list})
+    return render_template('client_dashboard.html', purchases=purchases)
 
-# Company Dashboard Data
+# Serve Company Dashboard
 @app.route('/company_dashboard', methods=['GET'])
 def company_dashboard():
     if 'user' not in session or session['user']['role'] != 'company':
-        return jsonify({'error': 'Unauthorized'}), 403
+        return redirect(url_for('login_page'))
 
     cur = mysql.connection.cursor()
     cur.execute("SELECT productCode, productName, salePrice, saleTime FROM sale")
     sales = cur.fetchall()
     cur.close()
 
-    sales_list = [{'product': s[1], 'code': s[0], 'price': s[2], 'time': s[3]} for s in sales]
-    return jsonify({'sales': sales_list})
+    return render_template('company_dashboard.html', sales=sales)
 
 # Update Prices
 @app.route('/update_prices', methods=['POST'])
@@ -97,8 +100,4 @@ def update_prices():
     return jsonify({'message': 'Prices updated successfully'})
 
 if __name__ == '__main__':
-    app.run(debug=True)
-
-if __name__ == '__main__':
-    db.create_all()
     app.run(debug=True)
