@@ -23,7 +23,6 @@ def home():
     return redirect(url_for('login_page'))
 
 # Serve Login Page
-@app.route('/login', methods=['GET'])
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
@@ -57,32 +56,6 @@ def login():
 
     return jsonify({'error': 'Invalid username or password'}), 401
 
-# Handle Login Request
-@app.route('/login', methods=['POST'])
-def login():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-
-    cur = mysql.connection.cursor()
-
-    # Check if user is a company
-    cur.execute("SELECT companyId, password FROM company WHERE username = %s", (username,))
-    company = cur.fetchone()
-
-    if company and bcrypt.check_password_hash(company[1], password):
-        session['user'] = {'id': company[0], 'role': 'company'}
-        return jsonify({'redirect': url_for('company_dashboard')})
-
-    # Check if user is a client
-    cur.execute("SELECT clientId, password FROM client WHERE username = %s", (username,))
-    client = cur.fetchone()
-
-    if client and bcrypt.check_password_hash(client[1], password):
-        session['user'] = {'id': client[0], 'role': 'client'}
-        return jsonify({'redirect': url_for('client_dashboard')})
-
-    return jsonify({'error': 'Invalid username or password'}), 401
 
 # Serve Client Dashboard
 @app.route('/client_dashboard', methods=['GET'])
