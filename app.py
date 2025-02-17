@@ -2,14 +2,20 @@ from flask import Flask, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
+from flask_session import Session
 
 app = Flask(__name__)
 
-# ✅ Updated to MySQL
+# ✅ MySQL Database Configuration
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql://sql7762208:MqFJpHymhB@sql7.freesqldatabase.com/sql7762208"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = "your_secret_key"
 
+# ✅ Flask-Session (Fixes session-related issues)
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)
+
+# ✅ Initialize Extensions
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 CORS(app)
@@ -45,7 +51,12 @@ class Sale(db.Model):
     salePrice = db.Column(db.Float)
     saleTime = db.Column(db.DateTime)
 
-# ✅ Login Route (No Change)
+# ✅ New Root Route (Prevents 404 on '/')
+@app.route('/')
+def home():
+    return jsonify({'message': 'API is running successfully!'}), 200
+
+# ✅ Login Route
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
@@ -64,7 +75,7 @@ def login():
 
     return jsonify({'error': 'Invalid username or password'}), 401
 
-# ✅ Client Dashboard Data (No Change)
+# ✅ Client Dashboard Data
 @app.route('/client_dashboard', methods=['GET'])
 def client_dashboard():
     if 'user' not in session or session['user']['role'] != 'client':
@@ -76,7 +87,7 @@ def client_dashboard():
 
     return jsonify({'purchases': purchase_list})
 
-# ✅ Company Dashboard Data (No Change)
+# ✅ Company Dashboard Data
 @app.route('/company_dashboard', methods=['GET'])
 def company_dashboard():
     if 'user' not in session or session['user']['role'] != 'company':
@@ -87,7 +98,7 @@ def company_dashboard():
 
     return jsonify({'sales': sales_list})
 
-# ✅ Update Prices Route (No Change)
+# ✅ Update Prices Route
 @app.route('/update_prices', methods=['POST'])
 def update_prices():
     if 'user' not in session or session['user']['role'] != 'company':
@@ -104,5 +115,15 @@ def update_prices():
     db.session.commit()
     return jsonify({'message': 'Prices updated successfully'})
 
+# ✅ Database Connection Test Route
+@app.route('/test_db', methods=['GET'])
+def test_db():
+    try:
+        db.session.execute("SELECT 1")
+        return jsonify({'message': 'Database connection successful'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ✅ Run App (Production Ready)
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=10000, debug=False)
