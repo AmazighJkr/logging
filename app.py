@@ -24,8 +24,38 @@ def home():
 
 # Serve Login Page
 @app.route('/login', methods=['GET'])
-def login_page():
-    return render_template('login.html')
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({'error': 'Username and password are required'}), 400
+
+    cur = mysql.connection.cursor()
+
+    # Check if user is a company
+    cur.execute("SELECT companyId, password FROM companies WHERE username = %s", (username,))
+    company = cur.fetchone()
+
+    if company:
+        db_password = company[1]
+        if bcrypt.check_password_hash(db_password, password):  # Use hashing
+            session['user'] = {'id': company[0], 'role': 'company'}
+            return jsonify({'redirect': '/company_dashboard'})
+
+    # Check if user is a client
+    cur.execute("SELECT clientId, password FROM clients WHERE username = %s", (username,))
+    client = cur.fetchone()
+
+    if client:
+        db_password = client[1]
+        if bcrypt.check_password_hash(db_password, password):  # Use hashing
+            session['user'] = {'id': client[0], 'role': 'client'}
+            return jsonify({'redirect': '/client_dashboard'})
+
+    return jsonify({'error': 'Invalid username or password'}), 401
 
 # Handle Login Request
 @app.route('/login', methods=['POST'])
