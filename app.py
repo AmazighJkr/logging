@@ -81,7 +81,7 @@ def company_dashboard():
         return redirect(url_for('login'))
 
     cur = mysql.connection.cursor()
-    cur.execute("SELECT productCode, productName, salePrice, saleTime FROM sale1")
+    cur.execute("SELECT productCode, productName, salePrice, saleTime FROM sales1")
     sales = cur.fetchall()
     cur.close()
 
