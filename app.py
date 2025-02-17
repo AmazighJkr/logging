@@ -20,7 +20,7 @@ mysql = MySQL(app)
 # Redirect to login page
 @app.route('/')
 def home():
-    return redirect(url_for('login_page'))
+    return redirect(url_for('login'))
 
 # Serve Login Page
 @app.route('/login', methods=['POST'])
@@ -61,7 +61,7 @@ def login():
 @app.route('/client_dashboard', methods=['GET'])
 def client_dashboard():
     if 'user' not in session or session['user']['role'] != 'client':
-        return redirect(url_for('login_page'))
+        return redirect(url_for('login'))
 
     client_id = session['user']['id']
     
@@ -76,7 +76,7 @@ def client_dashboard():
 @app.route('/company_dashboard', methods=['GET'])
 def company_dashboard():
     if 'user' not in session or session['user']['role'] != 'company':
-        return redirect(url_for('login_page'))
+        return redirect(url_for('login'))
 
     cur = mysql.connection.cursor()
     cur.execute("SELECT productCode, productName, salePrice, saleTime FROM sale")
