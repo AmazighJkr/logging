@@ -23,8 +23,11 @@ def home():
     return redirect(url_for('login'))
 
 # Serve Login Page
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'GET':
+        return render_template('login.html')  # Ensure 'login.html' exists in the same folder as `app.py`
+    
     data = request.json
     username = data.get('username')
     password = data.get('password')
@@ -55,7 +58,6 @@ def login():
             return jsonify({'redirect': '/client_dashboard'})
 
     return jsonify({'error': 'Invalid username or password'}), 401
-
 
 # Serve Client Dashboard
 @app.route('/client_dashboard', methods=['GET'])
