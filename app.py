@@ -43,7 +43,7 @@ def login():
 
     if company:
         db_password = company[1]
-        if bcrypt.check_password_hash(db_password, password):  # Use hashing
+        if db_password == password:  # Compare directly (NO HASHING)
             session['user'] = {'id': company[0], 'role': 'company'}
             return jsonify({'redirect': '/company_dashboard'})
 
@@ -53,7 +53,7 @@ def login():
 
     if client:
         db_password = client[1]
-        if bcrypt.check_password_hash(db_password, password):  # Use hashing
+        if db_password == password:  # Compare directly (NO HASHING)
             session['user'] = {'id': client[0], 'role': 'client'}
             return jsonify({'redirect': '/client_dashboard'})
 
