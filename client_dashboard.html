@@ -34,8 +34,15 @@
 
     <!-- RFID Cards and Balances -->
     <div class="card p-3 mb-4">
-        <h4 class="card-title text-center">Your RFID Cards</h4>
-        <div id="rfid-container"></div>
+        <h4 class="card-title text-center">Your Cards</h4>
+        <div id="rfid-container">
+            {% for card in rfid_cards %}
+                <div class="rfid-card p-3 bg-light rounded">
+                    <strong>Card UID: </strong>{{ card.uid }}<br>
+                    <strong>Balance:</strong> {{ card.balance }} Dinars
+                </div>
+            {% endfor %}
+        </div>
     </div>
 
     <!-- Purchase History -->
@@ -48,46 +55,17 @@
                     <th>Price (Dinars)</th>
                 </tr>
             </thead>
-            <tbody id="purchase-history"></tbody>
+            <tbody id="purchase-history">
+                {% for purchase in purchases %}
+                    <tr>
+                        <td>{{ purchase.date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ purchase.price }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
         </table>
     </div>
 </div>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        fetch("/client_dashboard")
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert("Unauthorized access.");
-                    return;
-                }
-
-                // ✅ Display Purchases
-                const purchaseHistory = document.getElementById("purchase-history");
-                purchaseHistory.innerHTML = "";
-                data.purchases.forEach(purchase => {
-                    const row = `<tr>
-                        <td>${new Date(purchase.date).toLocaleDateString()}</td>
-                        <td>${purchase.price}</td>
-                    </tr>`;
-                    purchaseHistory.innerHTML += row;
-                });
-
-                // ✅ Display RFID Cards
-                const rfidContainer = document.getElementById("rfid-container");
-                rfidContainer.innerHTML = "";
-                data.rfid_cards.forEach(card => {
-                    rfidContainer.innerHTML += `
-                        <div class="rfid-card p-3 bg-light rounded">
-                            <strong>Card UID: </strong>${card.uid}<br>
-                            <strong>Balance:</strong> ${card.balance} Dinars
-                        </div>`;
-                });
-            })
-            .catch(error => console.error("Error fetching data:", error));
-    });
-</script>
 
 </body>
 </html>
