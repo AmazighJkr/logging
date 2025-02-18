@@ -44,7 +44,7 @@ def login():
     if company:
         db_password = company[1]
         if db_password == password:  # Compare directly (NO HASHING)
-            session['user'] = {'companyId': company[0], 'role': 'company'}  # ✅ FIXED
+            session['user'] = {'companyId': company[0], 'role': 'company'}  
             return jsonify({'redirect': '/company_dashboard'})
 
     # Check if user is a client
@@ -54,7 +54,7 @@ def login():
     if client:
         db_password = client[1]
         if db_password == password:  # Compare directly (NO HASHING)
-            session['user'] = {'clientId': client[0], 'role': 'client'}  # ✅ Renaming for consistency
+            session['user'] = {'clientId': client[0], 'role': 'client'} 
             return jsonify({'redirect': '/client_dashboard'})
 
     return jsonify({'error': 'Invalid username or password'}), 401
@@ -65,7 +65,7 @@ def client_dashboard():
     if 'user' not in session or session['user']['role'] != 'client':
         return redirect(url_for('login'))
 
-    client_id = session['user']['id']
+    company_id = session['user']['companyId']
     cur = mysql.connection.cursor()
 
     # ✅ Fetch purchases from the correct table
