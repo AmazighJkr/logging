@@ -63,6 +63,7 @@
                     return;
                 }
 
+                // ✅ Display Purchases
                 const purchaseHistory = document.getElementById("purchase-history");
                 purchaseHistory.innerHTML = "";
                 data.purchases.forEach(purchase => {
@@ -73,18 +74,16 @@
                     purchaseHistory.innerHTML += row;
                 });
 
-                // Example RFID card display (modify based on real API response)
+                // ✅ Display RFID Cards
                 const rfidContainer = document.getElementById("rfid-container");
-                rfidContainer.innerHTML = `
-                    <div class="rfid-card p-3 bg-light rounded">
-                        <strong>Card UID: </strong>44 7c e7 a9<br>
-                        <strong>Balance:</strong> 5000 Dinars
-                    </div>
-                    <div class="rfid-card p-3 bg-light rounded">
-                        <strong>Card UID: </strong>97 71 64 a3<br>
-                        <strong>Balance:</strong> 8000 Dinars
-                    </div>
-                `;
+                rfidContainer.innerHTML = "";
+                data.rfid_cards.forEach(card => {
+                    rfidContainer.innerHTML += `
+                        <div class="rfid-card p-3 bg-light rounded">
+                            <strong>Card UID: </strong>${card.uid}<br>
+                            <strong>Balance:</strong> ${card.balance} Dinars
+                        </div>`;
+                });
             })
             .catch(error => console.error("Error fetching data:", error));
     });
