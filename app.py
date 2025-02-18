@@ -68,7 +68,7 @@ def client_dashboard():
     client_id = session['user']['id']
     
     cur = mysql.connection.cursor()
-    cur.execute("SELECT date, price FROM purchase1 WHERE clientId = %s", (client_id,))
+    cur.execute("SELECT date, price FROM purchases1 WHERE clientId = %s", (client_id,))
     purchases = cur.fetchall()
     cur.close()
 
