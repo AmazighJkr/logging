@@ -26,7 +26,7 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
-        return render_template('login.html')  # Ensure 'login.html' exists in the same folder as `app.py`
+        return render_template('login.html')  # Ensure 'login.html' exists
     
     data = request.json
     username = data.get('username')
@@ -44,7 +44,7 @@ def login():
     if company:
         db_password = company[1]
         if db_password == password:  # Compare directly (NO HASHING)
-            session['user'] = {'id': company[0], 'role': 'company'}
+            session['user'] = {'companyId': company[0], 'role': 'company'}  # ✅ FIXED
             return jsonify({'redirect': '/company_dashboard'})
 
     # Check if user is a client
@@ -54,7 +54,7 @@ def login():
     if client:
         db_password = client[1]
         if db_password == password:  # Compare directly (NO HASHING)
-            session['user'] = {'id': client[0], 'role': 'client'}
+            session['user'] = {'clientId': client[0], 'role': 'client'}  # ✅ Renaming for consistency
             return jsonify({'redirect': '/client_dashboard'})
 
     return jsonify({'error': 'Invalid username or password'}), 401
