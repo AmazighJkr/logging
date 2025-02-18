@@ -63,16 +63,27 @@ def login():
 @app.route('/client_dashboard', methods=['GET'])
 def client_dashboard():
     if 'user' not in session or session['user']['role'] != 'client':
-        return redirect(url_for('login'))
+        return jsonify({"error": "Unauthorized"}), 403  # Return error in JSON
 
     client_id = session['user']['id']
-    
+    purchase_table = f"purchases{client_id}"  # Dynamically select purchase table
+
     cur = mysql.connection.cursor()
-    cur.execute("SELECT date, price FROM purchases1 WHERE clientId = %s", (client_id,))
-    purchases = cur.fetchall()
+
+    # ✅ Fetch Purchases (if the table exists)
+    try:
+        cur.execute(f"SELECT date, price FROM {purchase_table} WHERE clientId = %s", (client_id,))
+        purchases = [{"date": str(row[0]), "price": row[1]} for row in cur.fetchall()]
+    except:
+        purchases = []  # If the table doesn't exist, return an empty list
+
+    # ✅ Fetch RFID Cards (UID & Balance)
+    cur.execute("SELECT uid, balance FROM users WHERE clientId = %s", (client_id,))
+    rfid_cards = [{"uid": row[0], "balance": row[1]} for row in cur.fetchall()]
+
     cur.close()
 
-    return render_template('client_dashboard.html', purchases=purchases)
+    return jsonify({"purchases": purchases, "rfid_cards": rfid_cards})
 
 # Serve Company Dashboard
 @app.route('/company_dashboard', methods=['GET'])
