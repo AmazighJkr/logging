@@ -58,8 +58,8 @@
             <tbody id="purchase-history">
                 {% for purchase in purchases %}
                     <tr>
-                        <td>{{ purchase.date.strftime('%Y-%m-%d') }}</td>
-                        <td>{{ purchase.price }}</td>
+                        <td>{{ purchase[0].strftime('%Y-%m-%d') }}</td>  <!-- If using tuple -->
+                        <td>{{ purchase[1] }}</td>
                     </tr>
                 {% endfor %}
             </tbody>
