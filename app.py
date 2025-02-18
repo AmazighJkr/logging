@@ -83,34 +83,48 @@ def client_dashboard():
     return render_template('client_dashboard.html', purchases=purchases, rfid_cards=rfid_cards)
 
 # Serve Company Dashboard
-@app.route('/company_dashboard', methods=['GET'])
+@app.route('/company_dashboard', methods=['GET', 'POST'])
 def company_dashboard():
     if 'user' not in session or session['user']['role'] != 'company':
         return redirect(url_for('login'))
 
+    company_id = session['user']['companyId']
+
+    # Get selected vending machine from the form (default: 1)
+    machine_id = request.form.get('machine', '1')
+
+    table_name = f"selles{company_id}_{machine_id}"  # Dynamic table name
+
     cur = mysql.connection.cursor()
-    cur.execute("SELECT productCode, productName, salePrice, saleTime FROM sales1")
+    query = f"SELECT productCode, productName, salePrice, saleTime FROM {table_name}"
+    cur.execute(query)
     sales = cur.fetchall()
     cur.close()
 
-    return render_template('company_dashboard.html', sales=sales)
+    return render_template('company_dashboard.html', sales=sales, selected_machine=machine_id)
 
 # Update Prices
 @app.route('/update_prices', methods=['POST'])
 def update_prices():
     if 'user' not in session or session['user']['role'] != 'company':
-        return jsonify({'error': 'Unauthorized'}), 403
+        return redirect(url_for('login'))
 
-    data = request.json
-    updated_prices = data.get('prices', [])
+    company_id = session['user']['companyId']
+    machine_id = request.form.get('machine', '1')  # Get selected machine
+
+    table_name = f"selles{company_id}_{machine_id}"  # Dynamic table name
 
     cur = mysql.connection.cursor()
-    for item in updated_prices:
-        cur.execute("UPDATE sale SET salePrice = %s WHERE productCode = %s", (item['new_price'], item['code']))
+    for key, value in request.form.items():
+        if key.startswith("price_"):  # Filter only price fields
+            product_code = key.split("_")[1]
+            new_price = value
+            query = f"UPDATE {table_name} SET salePrice = %s WHERE productCode = %s"
+            cur.execute(query, (new_price, product_code))
 
     mysql.connection.commit()
     cur.close()
-    return jsonify({'message': 'Prices updated successfully'})
+    return redirect(url_for('company_dashboard'))  # Redirect to refresh page
 
 if __name__ == '__main__':
     app.run(debug=True)
