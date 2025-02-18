@@ -63,27 +63,24 @@ def login():
 @app.route('/client_dashboard', methods=['GET'])
 def client_dashboard():
     if 'user' not in session or session['user']['role'] != 'client':
-        return jsonify({"error": "Unauthorized"}), 403  # Return error in JSON
+        return redirect(url_for('login'))
 
     client_id = session['user']['id']
-    purchase_table = f"purchases{client_id}"  # Dynamically select purchase table
-
     cur = mysql.connection.cursor()
 
-    # ✅ Fetch Purchases (if the table exists)
-    try:
-        cur.execute(f"SELECT date, price FROM {purchase_table} WHERE clientId = %s", (client_id,))
-        purchases = [{"date": str(row[0]), "price": row[1]} for row in cur.fetchall()]
-    except:
-        purchases = []  # If the table doesn't exist, return an empty list
+    # ✅ Fetch purchases from the correct table
+    table_name = f"purchases{client_id}"
+    cur.execute(f"SELECT date, price FROM {table_name} WHERE clientId = %s", (client_id,))
+    purchases = cur.fetchall()
 
-    # ✅ Fetch RFID Cards (UID & Balance)
+    # ✅ Fetch RFID cards
     cur.execute("SELECT uid, balance FROM users WHERE clientId = %s", (client_id,))
-    rfid_cards = [{"uid": row[0], "balance": row[1]} for row in cur.fetchall()]
-
+    rfid_cards = cur.fetchall()
+    
     cur.close()
 
-    return jsonify({"purchases": purchases, "rfid_cards": rfid_cards})
+    # ✅ Pass the data to the template instead of returning JSON
+    return render_template('client_dashboard.html', purchases=purchases, rfid_cards=rfid_cards)
 
 # Serve Company Dashboard
 @app.route('/company_dashboard', methods=['GET'])
