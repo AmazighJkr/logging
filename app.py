@@ -90,17 +90,18 @@ def company_dashboard():
 
     company_id = session['user']['companyId']  # Correctly get companyId from session
 
-    # Fetch company name
+    # Fetch company name and the number of vending machines
     cur = mysql.connection.cursor()
-    cur.execute("SELECT companyName FROM companies WHERE companyId = %s", (company_id,))
-    company_name = cur.fetchone()[0]
-    
+    cur.execute("SELECT companyName, vendingMachineNum FROM companies WHERE companyId = %s", (company_id,))
+    company_data = cur.fetchone()
+    company_name = company_data[0]
+    vending_machine_num = company_data[1]  # The number of vending machines
+
     # Get selected vending machine from the form (default: 1)
     machine_id = request.form.get('machine', '1')
 
-    # Fetch the list of vending machines for the company
-    cur.execute("SELECT vendingMachineId FROM vendingmachines WHERE companyId = %s", (company_id,))
-    machines = cur.fetchall()
+    # Generate list of vending machine ids (e.g., if there are 3 vending machines, we get [1, 2, 3])
+    machines = list(range(1, vending_machine_num + 1))
 
     # Tables for sales and products
     sales_table = f"selles{company_id}"
