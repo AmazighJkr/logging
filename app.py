@@ -75,7 +75,7 @@ def client_dashboard():
 
     # ✅ Fetch RFID cards
     cur.execute("SELECT uid, balance FROM users WHERE clientId = %s", (client_id,))
-    rfid_cards = cur.fetchall()
+    rfid_cards = [{'uid': row[0], 'balance': row[1]} for row in cur.fetchall()]
     
     cur.close()
 
