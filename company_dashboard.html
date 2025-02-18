@@ -22,9 +22,37 @@
         <noscript><input type="submit" value="Select Machine"></noscript>
     </form>
 
-    <div class="card">
+    <!-- Sales Table -->
+    <div class="card mt-4">
         <div class="card-body">
-            <h4 class="card-title mb-3">Update Prices</h4>
+            <h4 class="card-title mb-3">Sales History</h4>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Code</th>
+                        <th>Sale Price (Dinars)</th>
+                        <th>Sale Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td>{{ sale[2] }}</td> <!-- productName -->
+                        <td>{{ sale[1] }}</td> <!-- productCode -->
+                        <td>{{ sale[3] }} Dinars</td> <!-- salePrice -->
+                        <td>{{ sale[4] }}</td> <!-- saleTime -->
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Price Update Section -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <h4 class="card-title mb-3">Update Product Prices</h4>
 
             <!-- Price Update Form -->
             <form method="POST" action="{{ url_for('update_prices') }}">
@@ -40,13 +68,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for sale in sales %}
+                        {% for product in products %}
                         <tr>
-                            <td>{{ sale[1] }}</td>
-                            <td>{{ sale[0] }}</td>
-                            <td>{{ sale[2] }} Dinars</td>
+                            <td>{{ product[3] }}</td> <!-- productName -->
+                            <td>{{ product[2] }}</td> <!-- productCode -->
+                            <td>{{ product[4] }} Dinars</td> <!-- productPrice -->
                             <td>
-                                <input type="number" class="form-control" name="price_{{ sale[0] }}" value="{{ sale[2] }}">
+                                <input type="number" class="form-control" name="price_{{ product[2] }}" value="{{ product[4] }}">
                             </td>
                         </tr>
                         {% endfor %}
