@@ -119,7 +119,7 @@ def update_prices():
     if 'user' not in session or session['user']['role'] != 'company':
         return redirect(url_for('login'))
 
-    company_id = session['user']['id']  # Use 'id', not 'companyId'
+    company_id = session['user']['companyId']
     machine_id = request.form.get('machine', '1')  # Get selected machine
 
     table_name = f"products{company_id}"  # Correct table for products
