@@ -99,7 +99,7 @@ def company_dashboard():
     machine_id = request.form.get('machine', '1')
 
     # Fetch the list of vending machines for the company
-    cur.execute("SELECT vendingMachineId FROM vending_machines WHERE companyId = %s", (company_id,))
+    cur.execute("SELECT vendingMachineId FROM vendingmachines WHERE companyId = %s", (company_id,))
     machines = cur.fetchall()
 
     # Tables for sales and products
