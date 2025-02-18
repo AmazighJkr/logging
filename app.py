@@ -65,7 +65,7 @@ def client_dashboard():
     if 'user' not in session or session['user']['role'] != 'client':
         return redirect(url_for('login'))
 
-    company_id = session['user']['companyId']
+    client_id = session['user']['clientId']
     cur = mysql.connection.cursor()
 
     # ✅ Fetch purchases from the correct table
@@ -88,7 +88,7 @@ def company_dashboard():
     if 'user' not in session or session['user']['role'] != 'company':
         return redirect(url_for('login'))
 
-    company_id = session['user']['id']  # Use 'id', not 'companyId'
+    company_id = session['user']['companyId']
     
     # Get selected vending machine from the form (default: 1)
     machine_id = request.form.get('machine', '1')
