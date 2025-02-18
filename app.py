@@ -88,16 +88,23 @@ def company_dashboard():
     if 'user' not in session or session['user']['role'] != 'company':
         return redirect(url_for('login'))
 
-    company_id = session['user']['companyId']
+    company_id = session['user']['companyId']  # Correctly get companyId from session
+
+    # Fetch company name
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT companyName FROM companies WHERE companyId = %s", (company_id,))
+    company_name = cur.fetchone()[0]
     
     # Get selected vending machine from the form (default: 1)
     machine_id = request.form.get('machine', '1')
 
-    # Tables
+    # Fetch the list of vending machines for the company
+    cur.execute("SELECT vendingMachineId FROM vending_machines WHERE companyId = %s", (company_id,))
+    machines = cur.fetchall()
+
+    # Tables for sales and products
     sales_table = f"selles{company_id}"
     products_table = f"products{company_id}"
-
-    cur = mysql.connection.cursor()
 
     # Fetch sales data
     sales_query = f"SELECT productCode, productName, salePrice, saleTime FROM {sales_table} WHERE vendingMachineId = %s"
@@ -111,7 +118,8 @@ def company_dashboard():
 
     cur.close()
 
-    return render_template('company_dashboard.html', sales=sales, products=products, selected_machine=machine_id)
+    # Pass company name and vending machines to template
+    return render_template('company_dashboard.html', company_name=company_name, sales=sales, products=products, selected_machine=machine_id, machines=machines)
 
 # Update Prices
 @app.route('/update_prices', methods=['POST'])
