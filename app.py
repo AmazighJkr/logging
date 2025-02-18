@@ -10,9 +10,9 @@ app.secret_key = 'your_secret_key'  # Keep this secure!
 
 # MySQL Database Configuration
 app.config["MYSQL_HOST"] = "sql7.freesqldatabase.com"
-app.config["MYSQL_USER"] = "sql7762208"
-app.config["MYSQL_PASSWORD"] = "MqFJpHymhB"
-app.config["MYSQL_DB"] = "sql7762208"
+app.config["MYSQL_USER"] = "sql7763333"
+app.config["MYSQL_PASSWORD"] = "BtCcUDutUB"
+app.config["MYSQL_DB"] = "sql7763333"
 app.config["MYSQL_PORT"] = 3306
 
 mysql = MySQL(app)
