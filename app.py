@@ -88,24 +88,30 @@ def company_dashboard():
     if 'user' not in session or session['user']['role'] != 'company':
         return redirect(url_for('login'))
 
-    company_id = session['user']['companyId']
-
+    company_id = session['user']['id']  # Use 'id', not 'companyId'
+    
     # Get selected vending machine from the form (default: 1)
     machine_id = request.form.get('machine', '1')
 
-    # Correct table format (sales per company, filtered by machine)
-    table_name = f"selles{company_id}"
+    # Tables
+    sales_table = f"selles{company_id}"
+    products_table = f"products{company_id}"
 
     cur = mysql.connection.cursor()
-    
-    # Query sales for the selected vending machine
-    query = f"SELECT productCode, productName, salePrice, saleTime FROM {table_name} WHERE vendingMachineId = %s"
-    cur.execute(query, (machine_id,))
-    
+
+    # Fetch sales data
+    sales_query = f"SELECT productCode, productName, salePrice, saleTime FROM {sales_table} WHERE vendingMachineId = %s"
+    cur.execute(sales_query, (machine_id,))
     sales = cur.fetchall()
+
+    # Fetch product prices
+    products_query = f"SELECT productCode, productName, productPrice FROM {products_table} WHERE vendingMachineId = %s"
+    cur.execute(products_query, (machine_id,))
+    products = cur.fetchall()
+
     cur.close()
 
-    return render_template('company_dashboard.html', sales=sales, selected_machine=machine_id)
+    return render_template('company_dashboard.html', sales=sales, products=products, selected_machine=machine_id)
 
 # Update Prices
 @app.route('/update_prices', methods=['POST'])
@@ -113,22 +119,24 @@ def update_prices():
     if 'user' not in session or session['user']['role'] != 'company':
         return redirect(url_for('login'))
 
-    company_id = session['user']['companyId']
+    company_id = session['user']['id']  # Use 'id', not 'companyId'
     machine_id = request.form.get('machine', '1')  # Get selected machine
 
-    table_name = f"selles{company_id}_{machine_id}"  # Dynamic table name
+    table_name = f"products{company_id}"  # Correct table for products
 
     cur = mysql.connection.cursor()
     for key, value in request.form.items():
         if key.startswith("price_"):  # Filter only price fields
             product_code = key.split("_")[1]
             new_price = value
-            query = f"UPDATE {table_name} SET salePrice = %s WHERE productCode = %s"
-            cur.execute(query, (new_price, product_code))
+
+            query = f"UPDATE {table_name} SET productPrice = %s WHERE productCode = %s AND vendingMachineId = %s"
+            cur.execute(query, (new_price, product_code, machine_id))
 
     mysql.connection.commit()
     cur.close()
-    return redirect(url_for('company_dashboard'))  # Redirect to refresh page
+
+    return redirect(url_for('company_dashboard'))  # Refresh page
 
 if __name__ == '__main__':
     app.run(debug=True)
