@@ -93,11 +93,15 @@ def company_dashboard():
     # Get selected vending machine from the form (default: 1)
     machine_id = request.form.get('machine', '1')
 
-    table_name = f"selles{company_id}_{machine_id}"  # Dynamic table name
+    # Correct table format (sales per company, filtered by machine)
+    table_name = f"selles{company_id}"
 
     cur = mysql.connection.cursor()
-    query = f"SELECT productCode, productName, salePrice, saleTime FROM {table_name}"
-    cur.execute(query)
+    
+    # Query sales for the selected vending machine
+    query = f"SELECT productCode, productName, salePrice, saleTime FROM {table_name} WHERE vendingMachineId = %s"
+    cur.execute(query, (machine_id,))
+    
     sales = cur.fetchall()
     cur.close()
 
