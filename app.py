@@ -88,7 +88,7 @@ def company_dashboard():
     if 'user' not in session or session['user']['role'] != 'company':
         return redirect(url_for('login'))
 
-    company_id = session['user']['companyId']  # Correctly get companyId from session
+    company_id = session['user']['companyId']  # Get the company ID
 
     # Fetch company name and the number of vending machines
     cur = mysql.connection.cursor()
@@ -97,11 +97,16 @@ def company_dashboard():
     company_name = company_data[0]
     vending_machine_num = company_data[1]  # The number of vending machines
 
-    # Get selected vending machine from the form (default: 1)
+    # Ensure machine_id is received correctly (default: first vending machine)
     machine_id = request.form.get('machine', '1')
 
-    # Generate list of vending machine ids (e.g., if there are 3 vending machines, we get [1, 2, 3])
-    machines = list(range(1, vending_machine_num + 1))
+    try:
+        machine_id = int(machine_id)  # Convert to integer to avoid errors
+    except ValueError:
+        machine_id = 1  # Default to first vending machine
+
+    # Generate the list of vending machine IDs (e.g., [1, 2, 3] if vendingMachineNum = 3)
+    machines = [{"id": i, "name": f"Vending Machine {i}"} for i in range(1, vending_machine_num + 1)]
 
     # Tables for sales and products
     sales_table = f"selles{company_id}"
@@ -119,7 +124,6 @@ def company_dashboard():
 
     cur.close()
 
-    # Pass company name and vending machines to template
     return render_template('company_dashboard.html', company_name=company_name, sales=sales, products=products, selected_machine=machine_id, machines=machines)
 
 # Update Prices
