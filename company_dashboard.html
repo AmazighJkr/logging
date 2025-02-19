@@ -18,8 +18,8 @@
         <label for="machineSelect" class="form-label">Select Vending Machine:</label>
         <select class="form-select" id="machineSelect" name="machine" onchange="this.form.submit()">
             {% for machine in machines %}
-                <option value="{{ machine[0] }}" {% if selected_machine == machine[0] %}selected{% endif %}>
-                    Vending Machine {{ machine[0] }}
+                <option value="{{ machine.id }}" {% if selected_machine|int == machine.id %}selected{% endif %}>
+                    {{ machine.name }}
                 </option>
             {% endfor %}
         </select>
