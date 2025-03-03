@@ -1,19 +1,11 @@
-import pymysql
-pymysql.install_as_MySQLdb()
-
 from flask import Flask, request, jsonify, session, redirect, url_for, render_template
-from flask_cors import CORS
-from flask_socketio import SocketIO
-import json
-import os
 from flask_mysqldb import MySQL
 from flask_bcrypt import Bcrypt
-
+from flask_cors import CORS
 
 app = Flask(__name__, template_folder=".")  # Look for HTML files in the same directory
 CORS(app)
 bcrypt = Bcrypt(app)
-socketio = SocketIO(app, cors_allowed_origins="*")  # WebSocket setup with CORS
 app.secret_key = 'your_secret_key'  # Keep this secure!
 
 # Database configuration (update with correct values)
@@ -30,153 +22,42 @@ mysql = MySQL(app)
 def home():
     return redirect(url_for('login'))
 
-# Helper function to validate table names
-def validate_table_name(table_name):
-    allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
-    if all(char in allowed_chars for char in table_name):
-        return table_name
-    raise ValueError("Invalid table name")
+# Serve Login Page
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'GET':
+        return render_template('login.html')  # Ensure 'login.html' exists
+    
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
 
-# Route to fetch vending machines
-@app.route("/vendingmachines", methods=["GET"])
-def get_vending_machines():
-    cursor = None
-    try:
-        cursor = mysql.connection.cursor()
-        cursor.execute("SELECT vendingMachineCode AS code, vendingMachineName AS name FROM vendingmachines")
-        vending_machines = cursor.fetchall()
-        return jsonify([{ "code": row[0], "name": row[1] } for row in vending_machines])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if cursor:
-            cursor.close()
+    if not username or not password:
+        return jsonify({'error': 'Username and password are required'}), 400
 
-# WebSocket events
-@socketio.on('connect')
-def handle_connect():
-    print("Client connected")
+    cur = mysql.connection.cursor()
 
-@socketio.on('disconnect')
-def handle_disconnect():
-    print("Client disconnected")
+    # Check if user is a company
+    cur.execute("SELECT companyId, password FROM companies WHERE username = %s", (username,))
+    company = cur.fetchone()
 
-@socketio.on('message')
-def handle_message(data):
-    try:
-        event = data.get("event")
-        payload = data.get("data")
+    if company:
+        db_password = company[1]
+        if db_password == password:  # Compare directly (NO HASHING)
+            session['user'] = {'companyId': company[0], 'role': 'company'}  
+            return jsonify({'redirect': '/company_dashboard'})
 
-        if event == "sell_product":
-            handle_sell_product(payload)
-        elif event == "update_price":
-            handle_update_price(payload)
-        elif event == "custom_command":
-            handle_custom_command(payload)
-        else:
-            socketio.send(json.dumps({"error": "Invalid event type"}))
+    # Check if user is a client
+    cur.execute("SELECT clientId, password FROM clients WHERE username = %s", (username,))
+    client = cur.fetchone()
 
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-        socketio.send(json.dumps({"error": str(e)}))
+    if client:
+        db_password = client[1]
+        if db_password == password:  # Compare directly (NO HASHING)
+            session['user'] = {'clientId': client[0], 'role': 'client'} 
+            return jsonify({'redirect': '/client_dashboard'})
 
-# Sell product functionality
-def handle_sell_product(data):
-    vending_machine_code = data.get("vendingMachineCode")
-    uid = data.get("uid")
-    password = data.get("password")
-    product_code = data.get("productCode")
-
-    cursor = None
-    try:
-        cursor = mysql.connection.cursor()
-        cursor.execute("SELECT vendingMachineId, companyId FROM vendingmachines WHERE vendingMachineCode = %s", (vending_machine_code,))
-        vending_machine = cursor.fetchone()
-        if not vending_machine:
-            socketio.send(json.dumps({"sell_response": "Invalid vending machine code"}))
-            return
-        vending_machine_id, company_id = vending_machine
-
-        products_table = f"products{company_id}"
-        cursor.execute(f"SELECT productPrice, productName FROM {products_table} WHERE vendingMachineId = %s AND productCode = %s", (vending_machine_id, product_code))
-        product = cursor.fetchone()
-        if not product:
-            socketio.send(json.dumps({"sell_response": "Product not found in vending machine"}))
-            return
-        product_price, product_name = product
-
-        cursor.execute("SELECT userId, balance FROM users WHERE uid = %s AND password = %s", (uid, password))
-        user = cursor.fetchone()
-        if not user:
-            socketio.send(json.dumps({"sell_response": "Invalid user credentials"}))
-            return
-        user_id, balance = user
-
-        if balance < product_price:
-            socketio.send(json.dumps({"sell_response": f"Insufficient balance, {balance}"}))
-            return
-
-        new_balance = balance - product_price
-        cursor.execute("UPDATE users SET balance = %s WHERE userId = %s", (new_balance, user_id))
-
-        sale_table = validate_table_name(f"selles{vending_machine_id}")
-        cursor.execute(
-            f"INSERT INTO {sale_table} (vendingMachineId, productCode, productName, SalePrice, saleTime) VALUES (%s, %s, %s, %s, NOW())",
-            (vending_machine_id, product_code, product_name, product_price)
-        )
-
-        purchase_table = validate_table_name(f"purchases{user_id}")
-        cursor.execute(
-            f"INSERT INTO {purchase_table} (clientId, price, date) VALUES (%s, %s, NOW())",
-            (user_id, product_price)
-        )
-
-        mysql.connection.commit()
-        socketio.send(json.dumps({"sell_response": f"Sale successful, {new_balance}"}))
-
-    except Exception as e:
-        socketio.send(json.dumps({"sell_response": str(e)}))
-
-    finally:
-        if cursor:
-            cursor.close()
-
-# Update price functionality
-def handle_update_price(data):
-    vending_machine_code = data.get("vendingMachineCode")
-    product_code = data.get("productCode")
-    new_price = data.get("newPrice")
-
-    cursor = None
-    try:
-        cursor = mysql.connection.cursor()
-        cursor.execute("SELECT vendingMachineId FROM vendingmachines WHERE vendingMachineCode = %s", (vending_machine_code,))
-        vending_machine = cursor.fetchone()
-        if not vending_machine:
-            socketio.send(json.dumps({"update_response": "Invalid vending machine code"}))
-            return
-        vending_machine_id = vending_machine[0]
-
-        query = "UPDATE products SET productPrice = %s WHERE vendingMachineId = %s AND productCode = %s"
-        cursor.execute(query, (new_price, vending_machine_id, product_code))
-        mysql.connection.commit()
-        socketio.send(json.dumps({"update_response": "Product price updated successfully"}))
-
-    except Exception as e:
-        socketio.send(json.dumps({"update_response": str(e)}))
-
-    finally:
-        if cursor:
-            cursor.close()
-
-# Custom command functionality
-def handle_custom_command(data):
-    vending_machine_code = data.get("vendingMachineCode")
-    command = data.get("command")
-    try:
-        socketio.send(json.dumps({"custom_command_response": f"Command '{command}' sent to vending machine '{vending_machine_code}'"}))
-    except Exception as e:
-        socketio.send(json.dumps({"error": str(e)}))
+    return jsonify({'error': 'Invalid username or password'}), 401
 
 # Serve Client Dashboard
 @app.route('/client_dashboard', methods=['GET'])
@@ -245,6 +126,30 @@ def company_dashboard():
 
     return render_template('company_dashboard.html', company_name=company_name, sales=sales, products=products, selected_machine=machine_id, machines=machines)
 
-# Run the Flask app
-if __name__ == "__main__":
-    socketio.run(app, host='0.0.0.0', port=os.getenv('PORT', 3000), debug=True)
+# Update Prices
+@app.route('/update_prices', methods=['POST'])
+def update_prices():
+    if 'user' not in session or session['user']['role'] != 'company':
+        return redirect(url_for('login'))
+
+    company_id = session['user']['companyId']
+    machine_id = request.form.get('machine', '1')  # Get selected machine
+
+    table_name = f"products{company_id}"  # Correct table for products
+
+    cur = mysql.connection.cursor()
+    for key, value in request.form.items():
+        if key.startswith("price_"):  # Filter only price fields
+            product_code = key.split("_")[1]
+            new_price = value
+
+            query = f"UPDATE {table_name} SET productPrice = %s WHERE productCode = %s AND vendingMachineId = %s"
+            cur.execute(query, (new_price, product_code, machine_id))
+
+    mysql.connection.commit()
+    cur.close()
+
+    return redirect(url_for('company_dashboard'))  # Refresh page
+
+if __name__ == '__main__':
+    app.run(debug=True)
